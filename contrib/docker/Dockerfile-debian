@@ -1,25 +1,38 @@
 # -*-Dockerfile-*-
 
-ARG DEBIAN_VERSION=bullseye
+ARG DEBIAN_VERSION=stable
 
 FROM debian:${DEBIAN_VERSION} AS builder-onedrive
 
-RUN apt-get update \
+# Add backports repository and update before initial DEBIAN_FRONTEND installation
+RUN apt-get clean \
+ && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/debian-12-backports.list \
+ && apt-get update \
+ && apt-get upgrade -y \
+ && apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential curl ca-certificates libcurl4-openssl-dev libsqlite3-dev libxml2-dev pkg-config git ldc \
+ # Install|update curl from backports
+ && apt-get install -t bookworm-backports -y curl \
  && rm -rf /var/lib/apt/lists/*
 
 COPY . /usr/src/onedrive
 WORKDIR /usr/src/onedrive
 
-RUN ./configure DC=/usr/bin/ldmd2 \
+RUN ./configure --enable-debug\
  && make clean \
  && make \
  && make install
 
 FROM debian:${DEBIAN_VERSION}-slim
 
-RUN apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gosu libcurl4 libsqlite3-0 ca-certificates libphobos2-ldc-shared94 \
+# Add backports repository and update after DEBIAN_FRONTEND installation
+RUN apt-get clean \
+ && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/debian-12-backports.list \
+ && apt-get update \
+ && apt-get upgrade -y \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gosu libsqlite3-0 ca-certificates libphobos2-ldc-shared100 \
+ # Install|update curl and libcurl4 from backports
+ && apt-get install -t bookworm-backports -y curl libcurl4 \
  && rm -rf /var/lib/apt/lists/* \
  # Fix bug with ssl on armhf: https://serverfault.com/a/1045189
  && /usr/bin/c_rehash \

@@ -1,9 +1,9 @@
 # -*-Dockerfile-*-
 
-ARG FEDORA_VERSION=36
+ARG FEDORA_VERSION=40
 ARG DEBIAN_VERSION=bullseye
-ARG GO_VERSION=1.17
-ARG GOSU_VERSION=1.14
+ARG GO_VERSION=1.22
+ARG GOSU_VERSION=1.17
 
 FROM golang:${GO_VERSION}-${DEBIAN_VERSION} AS builder-gosu
 ARG GOSU_VERSION
@@ -18,12 +18,15 @@ ENV PKG_CONFIG=/usr/bin/pkgconf
 COPY . /usr/src/onedrive
 WORKDIR /usr/src/onedrive
 
-RUN ./configure \
+RUN ./configure --enable-debug\
  && make clean \
  && make \
  && make install
 
 FROM fedora:${FEDORA_VERSION}
+
+RUN dnf clean all \
+ && dnf -y update
 
 RUN dnf install -y libcurl sqlite ldc-libs \
  && dnf clean all \
